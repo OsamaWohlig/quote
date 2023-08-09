@@ -5,6 +5,14 @@ const ejs = require('ejs')
 const nodemailer = require('nodemailer')
 const cron = require('node-cron')
 const path = require('path')
+const mongoose = require('mongoose')
+const User = require('./userModel')
+
+app.use(express.json())
+
+mongoose.connect('mongodb://localhost:27017/e-commerce')
+    .then(()=>console.log('connection established'))
+    .catch(err=>console.log(err))
 
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -12,35 +20,41 @@ const transporter = nodemailer.createTransport({
     secure: true,
     auth: {
       user: 'osamap4026@gmail.com',
-      pass: 'zvvhpdgghbroyozl'
+      pass: ''
     }
   });
 
-cron.schedule('*/4 * * * * *',()=>{
-    fetch('https://api.api-ninjas.com/v1/quotes?category=morning',{
-        method:'GET',
-        headers:{
-            'X-Api-Key': '4j23X6k/RruQXsjCfaM1zA==HI4L1Qc9FjibwLyp'
-        }
+cron.schedule('*/5 * * * * *',async()=>{
+    let emailArray = [];
+    const emails = await User.find()
+    emails.forEach((user)=>{
+        emailArray.push(user.email);
     })
-        .then((res)=>res.json())
-        .then((data)=>{
-            console.log(path.join(__dirname,'/welcomeMail.ejs'))
-            ejs.renderFile(path.join(__dirname,'/welcomeMail.ejs'), {data})
-            .then((result)=>{
-                transporter.sendMail({
-                    from: 'osamap4026@gmail.com',
-                    to: 'vaishnavi2512@gmail.com',
-                    subject: "Welcome",
-                    text: "Hello", 
-                    html: result,
-                })
-                .then(()=>console.log('sent'))
-                .catch((err)=>console.log(err))
+    console.log(emailArray)
+    fetch('https://api.api-ninjas.com/v1/quotes?category=morning',{
+                method:'GET',
+                headers:{
+                    'X-Api-Key': '4j23X6k/RruQXsjCfaM1zA==HI4L1Qc9FjibwLyp'
+                }
             })
+            .then((res)=>res.json())
+            .then(data=>{
+                console.log(path.join(__dirname,'/welcomeMail.ejs'))
+                ejs.renderFile(path.join(__dirname,'/welcomeMail.ejs'), {data})
+                .then((result)=>{
+                    transporter.sendMail({
+                        from: 'osamap4026@gmail.com',
+                        to: emailArray,
+                        subject: "Welcome",
+                        text: "Hello", 
+                        html: result,
+                    })
+                    .then(()=>console.log('sent'))
+                    .catch((err)=>console.log(err))
+                })
+            })
+    // const data = quoteRes.json()
         })
-        .catch(err=>console.log(err))
-})
 
 
 app.post('/create', async(req, res) => {
